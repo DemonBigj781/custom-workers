@@ -13,3 +13,7 @@ all hires must have predetermined attire/hair/body/mesh at realistic styles with
 all first/last names must be unique and can only appear once.
 all names must match their gender on generation.
 the international gender is to be use as a fallback for when the male and/or female gender names get used.
+
+[privacy]
+anything copied from a local install must stay private and must not be committed to this repository.
+github actions must restore install-derived files from a private secret bundle instead of tracking them in git.

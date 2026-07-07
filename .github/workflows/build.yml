@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PRIVATE_DEPS_REPO: DemonBigj781/custom-workers-private-deps
+      PRIVATE_DEPS_TAG: game-install-deps
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore private install-derived dependencies
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_DEPS_TOKEN }}
+        run: |
+          set -eu
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo 'Missing PRIVATE_DEPS_TOKEN secret.' >&2
+            echo 'Set a token that can read the private dependency repository.' >&2
+            exit 1
+          fi
+
+          mkdir -p ci
+          gh release download "$PRIVATE_DEPS_TAG" \
+            --repo "$PRIVATE_DEPS_REPO" \
+            --pattern private-install.zip \
+            --dir ci
+
+          unzip -q ci/private-install.zip -d ci/private-install
+
+          test -f 'ci/private-install/BepInEx/core/BepInEx.dll'
+          test -f 'ci/private-install/BepInEx/core/0Harmony.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/Assembly-CSharp.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/UnityEngine.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/UnityEngine.CoreModule.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/UnityEngine.UI.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/UnityEngine.UIModule.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/UnityEngine.ImageConversionModule.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/Unity.TextMeshPro.dll'
+          test -f 'ci/private-install/Card Shop Simulator_Data/Managed/netstandard.dll'
+
+      - name: Run tests
+        run: dotnet test CustomWorkers.Tests/CustomWorkers.Tests.csproj /p:GameRoot="$GITHUB_WORKSPACE/ci/private-install"
+
+      - name: Build plugin
+        run: dotnet build CustomWorkers.csproj --configuration Release /p:GameRoot="$GITHUB_WORKSPACE/ci/private-install"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CustomWorkers
+          path: bin/Release/net472/CustomWorkers.dll
