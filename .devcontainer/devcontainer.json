@@ -1,0 +1,23 @@
+{
+  "name": "custom-workers-deps",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "root",
+  "containerEnv": {
+    "STEAMCMD_ROOT": "/workspaces/.cache/steamcmd",
+    "STEAM_LIBRARY_DIR": "/workspaces/.cache/steam/steamapps"
+  },
+  "mounts": [
+    "source=custom-workers-steamcmd,target=/workspaces/.cache/steamcmd,type=volume",
+    "source=custom-workers-steamlib,target=/workspaces/.cache/steam,type=volume"
+  ],
+  "postCreateCommand": "chmod +x tools/deps/*.sh tools/deps/games/*.conf || true",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "sh"
+      }
+    }
+  }
+}
