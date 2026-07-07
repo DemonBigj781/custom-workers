@@ -1,0 +1,4 @@
+bin/
+obj/
+CustomWorkers.Tests/bin/
+CustomWorkers.Tests/obj/
