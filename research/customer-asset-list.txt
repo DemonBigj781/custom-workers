@@ -1,0 +1,91 @@
+Body Types
+
+There are only two body meshes referenced:
+
+Male_Combined_HP Variant
+Female_Combined_HP Varian
+
+
+
+Male Hair Styles
+Afro_Curl_01
+Afro_Short_01
+Long_01
+Receded_01
+Short_Fringe_01
+Short_Middle_Part_01
+Side_Part_01
+Side_Part_02
+None (bald)
+
+Female Hair Styles
+Bob_01
+Long_Fringe_02
+Wavey_01
+
+Eyebrow Styles
+Eyebrows_01
+Eyebrows_02
+Eyebrows_03
+Eyebrows_04
+Eyebrows_05
+
+Beard Styles
+None
+Beard_01
+Beard_02
+Beard_03
+Beard_04
+
+Upper Body Clothing
+Casual_Shirt_01
+Corduroy_Jacket_Navy
+Crop_Top_01
+Hoodie_01
+Jacket_01
+Polo_Shirt_01
+Shirt_01
+Sleeveless_01
+Suit_Jacket_01
+Sweater_01
+TShirt_01
+
+Lower Body Clothing
+Cargo_Pants
+Jeans_01
+Jeans_Baggy_Blue
+Jeans_Baggy_Black
+Jeans_Black_01
+Jeans_Blue_01
+Shorts_01
+Suit_Pants_01
+
+Footwear
+Boots_01
+Dress_Shoes_01
+High_Heels_01
+Sandals_01
+Sneaker_01
+Sneaker_02
+
+Accessories
+None
+Aviator_Glasses
+BlackSunglasses
+Glasses_01
+Glasses_Aviator
+Wristwatch_01
+
+Clothing Material Variants Seen
+
+The clothing pieces reference material indices ranging from:
+
+0
+1
+2
+3
+4
+5
+
+
+not complete

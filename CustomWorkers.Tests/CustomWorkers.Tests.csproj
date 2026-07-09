@@ -48,22 +48,41 @@
 
   <ItemGroup>
     <Compile Include="../rules/ControllerRowRules.cs" Link="ControllerRowRules.cs" />
+    <Compile Include="../rules/AppearancePartRules.cs" Link="AppearancePartRules.cs" />
+    <Compile Include="../rules/AppearanceShuffleRules.cs" Link="AppearanceShuffleRules.cs" />
+    <Compile Include="../rules/AppearanceSkinRules.cs" Link="AppearanceSkinRules.cs" />
     <Compile Include="../rules/GeneratedWorkerAppearanceRules.cs" Link="GeneratedWorkerAppearanceRules.cs" />
     <Compile Include="../rules/GeneratedWorkerLogRules.cs" Link="GeneratedWorkerLogRules.cs" />
+    <Compile Include="../rules/HireWorkerCloneRules.cs" Link="HireWorkerCloneRules.cs" />
     <Compile Include="../rules/WorkerBioRules.cs" Link="WorkerBioRules.cs" />
     <Compile Include="../rules/HireWorkerNavigationRules.cs" Link="HireWorkerNavigationRules.cs" />
+    <Compile Include="../rules/MrBurnsRules.cs" Link="MrBurnsRules.cs" />
+    <Compile Include="../rules/ScrollStabilizationRules.cs" Link="ScrollStabilizationRules.cs" />
     <Compile Include="../rules/HireWorkerLayoutRules.cs" Link="HireWorkerLayoutRules.cs" />
     <Compile Include="../rules/ShirtColorRules.cs" Link="ShirtColorRules.cs" />
     <Compile Include="../rules/WorkerIconRules.cs" Link="WorkerIconRules.cs" />
+    <Compile Include="../enum/images/workericonsourceenum.cs" Link="workericonsourceenum.cs" />
+    <Compile Include="../enum/images/workericonbase64enum.cs" Link="workericonbase64enum.cs" />
     <Compile Include="../rules/WorkerRosterRules.cs" Link="WorkerRosterRules.cs" />
+    <Compile Include="../helpers/base64spritehelper.cs" Link="base64spritehelper.cs" />
+    <Compile Include="../helpers/appearancesettingshelper.cs" Link="appearancesettingshelper.cs" />
     <Compile Include="../enum/discriptionenum.cs" Link="discriptionenum.cs" />
-    <Compile Include="../enum/firstnameenum.cs" Link="firstnameenum.cs" />
+    <Compile Include="../enum/femalegenderenum.cs" Link="femalegenderenum.cs" />
     <Compile Include="../enum/lastnameenum.cs" Link="lastnameenum.cs" />
+    <Compile Include="../enum/malegenderenum.cs" Link="malegenderenum.cs" />
+    <Compile Include="../enum/mixedgenderenum.cs" Link="mixedgenderenum.cs" />
+    <Compile Include="AppearancePartRulesTests.cs" />
+    <Compile Include="AppearanceSkinRulesTests.cs" />
+    <Compile Include="AppearanceShuffleRulesTests.cs" />
     <Compile Include="ControllerRowRulesTests.cs" />
     <Compile Include="GeneratedWorkerAppearanceRulesTests.cs" />
     <Compile Include="GeneratedWorkerLogRulesTests.cs" />
+    <Compile Include="HireWorkerCloneRulesTests.cs" />
     <Compile Include="WorkerBioRulesTests.cs" />
+    <Compile Include="WorkerIconSourceRulesTests.cs" />
     <Compile Include="HireWorkerNavigationRulesTests.cs" />
+    <Compile Include="MrBurnsRulesTests.cs" />
+    <Compile Include="ScrollStabilizationRulesTests.cs" />
     <Compile Include="HireWorkerLayoutRulesTests.cs" />
     <Compile Include="ShirtColorRulesTests.cs" />
     <Compile Include="WorkerRosterRulesTests.cs" />

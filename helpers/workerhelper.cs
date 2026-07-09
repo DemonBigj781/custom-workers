@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using HarmonyLib;
 using UnityEngine;
 using CC;
 
@@ -18,6 +16,11 @@ internal sealed class GeneratedWorkerAppearance
 
 internal static class WorkerHelper
 {
+    private static readonly HashSet<int> ValidFemaleModelIndices = new HashSet<int>();
+    private static readonly HashSet<int> ValidMaleModelIndices = new HashSet<int>();
+    private static readonly HashSet<int> InvalidFemaleModelIndices = new HashSet<int>();
+    private static readonly HashSet<int> InvalidMaleModelIndices = new HashSet<int>();
+
     internal static bool TryGetGeneratedWorkerAppearance(Worker? worker, IDictionary<int, GeneratedWorkerAppearance> appearances, out GeneratedWorkerAppearance? appearance)
     {
         appearance = null;
@@ -34,7 +37,7 @@ internal static class WorkerHelper
         var random = new System.Random(unchecked(WorkerRosterRules.Seed + 100003 + (workerIndex * 48611) + (generatedSlotIndex * 97)));
         bool isFemale = random.Next(2) == 0;
         int maxModelIndex = GetCustomerModelIndexMax(isFemale, maxFemaleModelIndexField, maxMaleModelIndexField);
-        int characterModelIndex = maxModelIndex > 0 ? random.Next(maxModelIndex + 1) : 0;
+        int characterModelIndex = ChooseValidatedModelIndex(isFemale, maxModelIndex, random);
 
         float heightScale = 0.9f + ((float)random.NextDouble() * 0.25f);
         float widthScale = 0.9f + ((float)random.NextDouble() * 0.2f);
@@ -49,63 +52,71 @@ internal static class WorkerHelper
         };
     }
 
-    internal static void ApplyGeneratedWorkerClothingColors(Worker? worker, FieldInfo apparelObjectsField, IDictionary<int, GeneratedWorkerAppearance> appearances)
+    internal static void ObserveGeneratedWorkerModelResult(Worker? worker, IDictionary<int, GeneratedWorkerAppearance> appearances)
     {
+        if (!TryGetGeneratedWorkerAppearance(worker, appearances, out GeneratedWorkerAppearance? appearance) || worker?.m_CharacterCustom?.StoredCharacterData == null)
+        {
+            return;
+        }
+
+        GeneratedWorkerAppearance nonNullAppearance = appearance!;
+        string observedBodyType = worker.m_CharacterCustom.StoredCharacterData.CharacterPrefab ?? string.Empty;
+        bool matches = IsObservedBodyTypeCompatible(nonNullAppearance.IsFemale, observedBodyType);
+        HashSet<int> validSet = nonNullAppearance.IsFemale ? ValidFemaleModelIndices : ValidMaleModelIndices;
+        HashSet<int> invalidSet = nonNullAppearance.IsFemale ? InvalidFemaleModelIndices : InvalidMaleModelIndices;
+
+        if (matches)
+        {
+            if (validSet.Add(nonNullAppearance.CharacterModelIndex))
+            {
+                LogHelper.LogRuntimeDebug($"Custom Workers validated generated worker model index {nonNullAppearance.CharacterModelIndex} for {(nonNullAppearance.IsFemale ? "female" : "male")} bodyType='{observedBodyType}'.");
+            }
+
+            invalidSet.Remove(nonNullAppearance.CharacterModelIndex);
+        }
+        else
+        {
+            if (invalidSet.Add(nonNullAppearance.CharacterModelIndex))
+            {
+                LogHelper.LogRuntimeDebug($"Custom Workers invalidated generated worker model index {nonNullAppearance.CharacterModelIndex} for {(nonNullAppearance.IsFemale ? "female" : "male")} bodyType='{observedBodyType}'.");
+            }
+        }
+    }
+
+    internal static string GetFallbackWorkerCharacterName()
+    {
+        WorkerData? workerData = WorkerManager.GetWorkerData(0);
+        if (workerData == null)
+        {
+            return "Worker0";
+        }
+
+        return "Worker0";
+    }
+
+    internal static void ApplyGeneratedWorkerClothingColors(Worker? worker, FieldInfo apparelObjectsField, IDictionary<int, GeneratedWorkerAppearance> appearances, AppearanceShuffleOptions options)
+    {
+        if (!options.EnableWorkerAppearancePatch)
+        {
+            return;
+        }
+
         if (worker?.m_CharacterCustom == null || apparelObjectsField == null || !TryGetGeneratedWorkerAppearance(worker, appearances, out GeneratedWorkerAppearance? appearance))
         {
             return;
         }
 
         CharacterCustomization customization = worker.m_CharacterCustom;
-        if (!customization.m_HasInit || customization.ApparelTables == null || customization.ApparelTables.Count == 0)
+        if (!customization.m_HasInit)
         {
             return;
         }
 
-        IList? apparelObjects = apparelObjectsField.GetValue(customization) as IList;
-        if (apparelObjects == null || apparelObjects.Count == 0)
-        {
-            return;
-        }
-
-        worker.m_CharacterCustom.transform.localScale = appearance.CharacterScale;
-        ApplyNaturalHairColor(worker.m_CharacterCustom.gameObject, appearance.HairColor);
-
-        bool applied = false;
+        CharacterCustomization nonNullCustomization = worker.m_CharacterCustom;
+        GeneratedWorkerAppearance nonNullAppearance = appearance!;
+        nonNullCustomization.transform.localScale = nonNullAppearance.CharacterScale;
         var colorRandom = new System.Random(unchecked(WorkerRosterRules.Seed + (worker.m_WorkerIndex * 48611)));
-
-        for (int slotIndex = 0; slotIndex < customization.ApparelTables.Count && slotIndex < apparelObjects.Count; slotIndex++)
-        {
-            if (!ShirtColorRules.IsColorableClothingLabel(customization.ApparelTables[slotIndex]?.Label))
-            {
-                continue;
-            }
-
-            if (apparelObjects[slotIndex] is not GameObject apparelObject || apparelObject == null)
-            {
-                continue;
-            }
-
-            Color[] slotTints = ShirtColorRules.BuildTintSet(ShirtColorRules.CreateRandomBaseColor(colorRandom));
-            applied |= ApplyTintsToObject(apparelObject, slotTints);
-        }
-
-        if (!applied)
-        {
-            for (int slotIndex = 0; slotIndex < apparelObjects.Count; slotIndex++)
-            {
-                if (apparelObjects[slotIndex] is not GameObject apparelObject || apparelObject == null)
-                {
-                    continue;
-                }
-
-                Color[] slotTints = ShirtColorRules.BuildTintSet(ShirtColorRules.CreateRandomBaseColor(colorRandom));
-                if (ApplyTintsToObject(apparelObject, slotTints, requireClothingName: true))
-                {
-                    applied = true;
-                }
-            }
-        }
+        AppearanceHelper.ApplyAppearanceShuffling(customization, apparelObjectsField, colorRandom, AppearanceShuffleTarget.Workers, options, nonNullAppearance.IsFemale);
     }
 
     private static int GetCustomerModelIndexMax(bool isFemale, FieldInfo maxFemaleModelIndexField, FieldInfo maxMaleModelIndexField)
@@ -117,6 +128,68 @@ internal static class WorkerHelper
         }
 
         return isFemale ? 15 : 35;
+    }
+
+    private static int ChooseValidatedModelIndex(bool isFemale, int maxModelIndex, System.Random random)
+    {
+        if (maxModelIndex <= 0)
+        {
+            return 0;
+        }
+
+        HashSet<int> validSet = isFemale ? ValidFemaleModelIndices : ValidMaleModelIndices;
+        HashSet<int> invalidSet = isFemale ? InvalidFemaleModelIndices : InvalidMaleModelIndices;
+        List<int> candidates = new List<int>();
+
+        if (validSet.Count > 0)
+        {
+            foreach (int index in validSet)
+            {
+                if (index >= 0 && index <= maxModelIndex)
+                {
+                    candidates.Add(index);
+                }
+            }
+        }
+        else
+        {
+            for (int index = 0; index <= maxModelIndex; index++)
+            {
+                if (!invalidSet.Contains(index))
+                {
+                    candidates.Add(index);
+                }
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            for (int index = 0; index <= maxModelIndex; index++)
+            {
+                candidates.Add(index);
+            }
+        }
+
+        return candidates[random.Next(candidates.Count)];
+    }
+
+    private static bool IsObservedBodyTypeCompatible(bool expectedFemale, string observedBodyType)
+    {
+        if (string.IsNullOrWhiteSpace(observedBodyType))
+        {
+            return false;
+        }
+
+        bool saysFemale = observedBodyType.StartsWith("Female_", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(observedBodyType, "Female", StringComparison.OrdinalIgnoreCase);
+        bool saysMale = observedBodyType.StartsWith("Male_", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(observedBodyType, "Male", StringComparison.OrdinalIgnoreCase);
+        if (expectedFemale)
+        {
+            return saysFemale && !saysMale;
+        }
+
+        return saysMale && !saysFemale;
     }
 
     private static Color CreateNaturalHairColor(System.Random random)
@@ -137,127 +210,4 @@ internal static class WorkerHelper
         return naturalPalette[random.Next(naturalPalette.Length)];
     }
 
-    private static void ApplyNaturalHairColor(GameObject rootObject, Color hairColor)
-    {
-        if (rootObject == null)
-        {
-            return;
-        }
-
-        Color[] hairTints = ShirtColorRules.BuildTintSet(hairColor);
-        Renderer[] renderers = rootObject.GetComponentsInChildren<Renderer>(true);
-        for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
-        {
-            Renderer renderer = renderers[rendererIndex];
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            string objectName = renderer.gameObject.name.ToLowerInvariant();
-            if (!objectName.Contains("hair") && !objectName.Contains("brow") && !objectName.Contains("beard") && !objectName.Contains("mustache"))
-            {
-                continue;
-            }
-
-            Material[] materials = renderer.materials;
-            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
-            {
-                Material material = materials[materialIndex];
-                if (material == null)
-                {
-                    continue;
-                }
-
-                if (material.HasProperty("_Tint"))
-                {
-                    material.SetColor("_Tint", hairTints[0]);
-                }
-
-                if (material.HasProperty("_BaseColor"))
-                {
-                    material.SetColor("_BaseColor", hairTints[0]);
-                }
-
-                if (material.HasProperty("_Tint_R"))
-                {
-                    material.SetColor("_Tint_R", hairTints[1]);
-                }
-
-                if (material.HasProperty("_Tint_G"))
-                {
-                    material.SetColor("_Tint_G", hairTints[2]);
-                }
-
-                if (material.HasProperty("_Tint_B"))
-                {
-                    material.SetColor("_Tint_B", hairTints[3]);
-                }
-            }
-        }
-    }
-
-    private static bool ApplyTintsToObject(GameObject apparelObject, Color[] tints, bool requireClothingName = false)
-    {
-        bool applied = false;
-        SkinnedMeshRenderer[] renderers = apparelObject.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        foreach (SkinnedMeshRenderer renderer in renderers)
-        {
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            string objectName = renderer.gameObject.name.ToLowerInvariant();
-            if (requireClothingName && !ShirtColorRules.IsColorableClothingLabel(objectName))
-            {
-                continue;
-            }
-
-            Material[] materials = renderer.materials;
-            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
-            {
-                Material material = materials[materialIndex];
-                if (material == null)
-                {
-                    continue;
-                }
-
-                bool materialApplied = false;
-                if (material.HasProperty("_Tint"))
-                {
-                    material.SetColor("_Tint", tints[0]);
-                    materialApplied = true;
-                }
-
-                if (material.HasProperty("_BaseColor"))
-                {
-                    material.SetColor("_BaseColor", tints[0]);
-                    materialApplied = true;
-                }
-
-                if (material.HasProperty("_Tint_R"))
-                {
-                    material.SetColor("_Tint_R", tints[1]);
-                    materialApplied = true;
-                }
-
-                if (material.HasProperty("_Tint_G"))
-                {
-                    material.SetColor("_Tint_G", tints[2]);
-                    materialApplied = true;
-                }
-
-                if (material.HasProperty("_Tint_B"))
-                {
-                    material.SetColor("_Tint_B", tints[3]);
-                    materialApplied = true;
-                }
-
-                applied |= materialApplied;
-            }
-        }
-
-        return applied;
-    }
 }

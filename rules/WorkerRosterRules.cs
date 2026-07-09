@@ -8,19 +8,32 @@ internal static class WorkerRosterRules
 {
     internal const int Seed = 1337;
 
-    private static readonly string[] OrderedFemaleNames = BuildOrderedDistinct(FirstNamePools.Female);
-    private static readonly string[] OrderedMaleNames = BuildOrderedDistinct(FirstNamePools.Male);
-    private static readonly string[] OrderedMixedNames = BuildOrderedDistinct(FirstNamePools.International);
+    private static readonly string[] OrderedFemaleNames = BuildOrderedDistinct(FemaleNamePools.First);
+    private static readonly string[] OrderedMaleNames = BuildOrderedDistinct(MaleNamePools.First);
+    private static readonly string[] OrderedMixedNames = BuildOrderedDistinct(MixedGenderNamePools.First);
+    private static readonly string[] OrderedAllFirstNames = BuildOrderedDistinct(OrderedMaleNames.Concat(OrderedFemaleNames).Concat(OrderedMixedNames));
+    private static readonly string[] OrderedAllLastNames = BuildOrderedDistinct(LastNamePools.Common);
 
-    internal static int GetGeneratedWorkerCount()
+    internal static int GetGeneratedWorkerCount(IEnumerable<WorkerData> existingWorkers)
     {
-        return 7;
+        int requested = Math.Max(1, AppearanceSettingsHelper.GetCurrentOptions().GeneratedWorkerCount);
+        int maximum = GetMaximumGeneratedWorkerCount(existingWorkers);
+        return Math.Min(requested, maximum);
     }
 
-    internal static WorkerData CreateGeneratedWorkerData(WorkerData template, int newIndex, int generatedSlotIndex, bool isFemale, ISet<string> usedNames)
+    internal static int GetMaximumGeneratedWorkerCount(IEnumerable<WorkerData> existingWorkers)
+    {
+        HashSet<string> usedFirstNames = CollectUsedFirstNames(existingWorkers);
+        HashSet<string> usedLastNames = CollectUsedLastNames(existingWorkers);
+        int availableFirstNames = OrderedAllFirstNames.Count(first => !usedFirstNames.Contains(first));
+        int availableLastNames = OrderedAllLastNames.Count(last => !usedLastNames.Contains(last));
+        return Math.Max(1, Math.Min(availableFirstNames, availableLastNames));
+    }
+
+    internal static WorkerData CreateGeneratedWorkerData(WorkerData template, int newIndex, int generatedSlotIndex, bool isFemale, ISet<string> usedNames, ISet<string> usedFirstNames, ISet<string> usedLastNames)
     {
         Random random = CreateRandom(newIndex, isFemale);
-        string name = NextUniqueName(random, generatedSlotIndex, isFemale, usedNames);
+        string name = NextUniqueName(random, generatedSlotIndex, isFemale, usedNames, usedFirstNames, usedLastNames);
 
         float restockFactor = NextRange(random, 0.88f, 1.12f);
         float checkoutFactor = NextRange(random, 0.88f, 1.12f);
@@ -55,31 +68,72 @@ internal static class WorkerRosterRules
             .Select(static name => name!.Trim()), StringComparer.OrdinalIgnoreCase);
     }
 
+    internal static HashSet<string> CollectUsedFirstNames(IEnumerable<WorkerData> workers)
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (WorkerData worker in workers)
+        {
+            string? firstName = SplitName(worker?.name).firstName;
+            if (!string.IsNullOrWhiteSpace(firstName))
+            {
+                used.Add(firstName);
+            }
+        }
+
+        return used;
+    }
+
+    internal static HashSet<string> CollectUsedLastNames(IEnumerable<WorkerData> workers)
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (WorkerData worker in workers)
+        {
+            string? lastName = SplitName(worker?.name).lastName;
+            if (!string.IsNullOrWhiteSpace(lastName))
+            {
+                used.Add(lastName);
+            }
+        }
+
+        return used;
+    }
+
     private static Random CreateRandom(int workerIndex, bool isFemale)
     {
         int salt = isFemale ? 17 : 29;
         return new Random(unchecked(Seed + salt + (workerIndex * 7919)));
     }
 
-    private static string NextUniqueName(Random random, int generatedSlotIndex, bool isFemale, ISet<string> usedNames)
+    private static string NextUniqueName(Random random, int generatedSlotIndex, bool isFemale, ISet<string> usedNames, ISet<string> usedFirstNames, ISet<string> usedLastNames)
     {
         string[] preferredNames = isFemale ? OrderedFemaleNames : OrderedMaleNames;
         string[] secondaryNames = OrderedMixedNames;
         string[] tertiaryNames = isFemale ? OrderedMaleNames : OrderedFemaleNames;
 
-        string? match = TryPickOrderedUniqueFullName(random, generatedSlotIndex, preferredNames, usedNames)
-            ?? TryPickOrderedUniqueFullName(random, generatedSlotIndex, secondaryNames, usedNames)
-            ?? TryPickOrderedUniqueFullName(random, generatedSlotIndex, tertiaryNames, usedNames)
-            ?? TryPickUniqueFullName(random, isFemale ? FirstNamePools.Female : FirstNamePools.Male, usedNames)
-            ?? TryPickUniqueFullName(random, FirstNamePools.International, usedNames)
-            ?? TryPickUniqueFullName(random, isFemale ? FirstNamePools.Male : FirstNamePools.Female, usedNames)
-            ?? TryPickUniqueFullName(random, preferredNames, usedNames)
-            ?? TryPickUniqueFullName(random, secondaryNames, usedNames)
-            ?? TryPickUniqueFullName(random, tertiaryNames, usedNames);
+        string? match = TryPickOrderedUniqueFullName(random, generatedSlotIndex, preferredNames, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickOrderedUniqueFullName(random, generatedSlotIndex, secondaryNames, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickOrderedUniqueFullName(random, generatedSlotIndex, tertiaryNames, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, isFemale ? FemaleNamePools.First : MaleNamePools.First, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, MixedGenderNamePools.First, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, isFemale ? MaleNamePools.First : FemaleNamePools.First, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, preferredNames, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, secondaryNames, usedNames, usedFirstNames, usedLastNames)
+            ?? TryPickUniqueFullName(random, tertiaryNames, usedNames, usedFirstNames, usedLastNames);
 
         if (match != null)
         {
             usedNames.Add(match);
+            (string firstName, string lastName) = SplitName(match);
+            if (!string.IsNullOrWhiteSpace(firstName))
+            {
+                usedFirstNames.Add(firstName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(lastName))
+            {
+                usedLastNames.Add(lastName);
+            }
+
             return match;
         }
 
@@ -94,7 +148,7 @@ internal static class WorkerRosterRules
         return generated;
     }
 
-    private static string? TryPickOrderedUniqueFullName(Random random, int generatedSlotIndex, string[] firstNames, ISet<string> usedNames)
+    private static string? TryPickOrderedUniqueFullName(Random random, int generatedSlotIndex, string[] firstNames, ISet<string> usedNames, ISet<string> usedFirstNames, ISet<string> usedLastNames)
     {
         if (firstNames.Length == 0 || LastNamePools.Common.Length == 0)
         {
@@ -111,7 +165,7 @@ internal static class WorkerRosterRules
             {
                 string lastName = LastNamePools.Common[(lastStart + lastOffset) % LastNamePools.Common.Length];
                 string candidate = $"{firstName} {lastName}";
-                if (!usedNames.Contains(candidate))
+                if (!usedNames.Contains(candidate) && !usedFirstNames.Contains(firstName) && !usedLastNames.Contains(lastName))
                 {
                     return candidate;
                 }
@@ -121,7 +175,7 @@ internal static class WorkerRosterRules
         return null;
     }
 
-    private static string? TryPickUniqueFullName(Random random, string[] firstNames, ISet<string> usedNames)
+    private static string? TryPickUniqueFullName(Random random, string[] firstNames, ISet<string> usedNames, ISet<string> usedFirstNames, ISet<string> usedLastNames)
     {
         if (firstNames.Length == 0 || LastNamePools.Common.Length == 0)
         {
@@ -138,7 +192,7 @@ internal static class WorkerRosterRules
             {
                 string lastName = LastNamePools.Common[(lastStart + lastOffset) % LastNamePools.Common.Length];
                 string candidate = $"{firstName} {lastName}";
-                if (!usedNames.Contains(candidate))
+                if (!usedNames.Contains(candidate) && !usedFirstNames.Contains(firstName) && !usedLastNames.Contains(lastName))
                 {
                     return candidate;
                 }
@@ -195,5 +249,22 @@ internal static class WorkerRosterRules
             1 => 100f,
             _ => 150f
         };
+    }
+
+    private static (string firstName, string lastName) SplitName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        string normalizedName = fullName!.Trim();
+        string[] parts = normalizedName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        return (parts[0], parts.Length > 1 ? parts[parts.Length - 1] : string.Empty);
     }
 }

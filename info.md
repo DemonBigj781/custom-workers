@@ -4,8 +4,11 @@ create a way to procedraly generate a massive list of workers to hire
 [rules]
 all hires are to hired in with a $2,000 hire fee and have a set payrol at 50,100,150 per day
 only the provided image will be used for this mod as a profile picture for the new workers
-do not include other bundles or expect the pressence of any other mods to be used as a dependency
+do not include unrelated bundles as dependencies
 all ui edits must be kept at a minimal
+phone overhaul is now an expected dependency for phone app work in this mod.
+when changing the phone hire app ui, the original ui must not be altered directly.
+all phone ui work must be done through a custom cloned ui that uses phone overhaul as its api/base while the original remains hidden and intact.
 all hires can be hired at lvl 1
 do not alter the base game hires
 all ui interactions must be navigatable with both a mouse/keyboard and an joypad device (xinput/directinput)
@@ -13,7 +16,3 @@ all hires must have predetermined attire/hair/body/mesh at realistic styles with
 all first/last names must be unique and can only appear once.
 all names must match their gender on generation.
 the international gender is to be use as a fallback for when the male and/or female gender names get used.
-
-[privacy]
-anything copied from a local install must stay private and must not be committed to this repository.
-github actions must restore install-derived files from a private secret bundle instead of tracking them in git.

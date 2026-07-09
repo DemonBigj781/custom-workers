@@ -11,6 +11,12 @@ internal static class WorkerIconRules
     private static Sprite? cachedGeneratedWorkerSprite;
     private static bool attemptedLoad;
 
+    internal static void ResetCache()
+    {
+        attemptedLoad = false;
+        cachedGeneratedWorkerSprite = null;
+    }
+
     internal static Sprite? GetGeneratedWorkerIcon(Sprite? fallbackIcon)
     {
         Sprite? customSprite = LoadGeneratedWorkerIcon();
@@ -34,33 +40,24 @@ internal static class WorkerIconRules
         }
 
         attemptedLoad = true;
-
-        string iconPath = GetGeneratedWorkerIconPath();
-        if (!File.Exists(iconPath))
-        {
-            return null;
-        }
-
-        byte[] pngBytes = File.ReadAllBytes(iconPath);
-        if (pngBytes.Length == 0)
-        {
-            return null;
-        }
-
-        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
-        texture.name = "CustomWorkers_GeneratedWorkerIcon";
-        if (!ImageConversion.LoadImage(texture, pngBytes, markNonReadable: false))
-        {
-            Object.Destroy(texture);
-            return null;
-        }
-
-        cachedGeneratedWorkerSprite = Sprite.Create(
-            texture,
-            new Rect(0f, 0f, texture.width, texture.height),
-            new Vector2(0.5f, 0.5f),
-            100f);
-        cachedGeneratedWorkerSprite.name = "CustomWorkers_GeneratedWorkerIcon";
+        cachedGeneratedWorkerSprite = LoadEmbeddedWorkerIcon();
         return cachedGeneratedWorkerSprite;
+    }
+
+    private static Sprite? LoadEmbeddedWorkerIcon()
+    {
+        if (!Base64SpriteHelper.TryDecodePng(WorkerIconBase64Data.Value, out byte[]? pngBytes, "generated-worker-icon-embedded") || pngBytes == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Base64SpriteHelper.CreateSpriteFromPng(pngBytes, "CustomWorkers_GeneratedWorkerIcon");
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
     }
 }

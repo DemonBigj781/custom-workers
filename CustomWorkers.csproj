@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GameRoot Condition="'$(GameRoot)' == ''">/var/home/jack/.local/share/Steam/steamapps/common/TCG Card Shop Simulator</GameRoot>
+    <CustomWorkersBuildAttemptFile>$(MSBuildProjectDirectory)/.build/custom-workers-build-attempt-$(Configuration).txt</CustomWorkersBuildAttemptFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -51,4 +52,81 @@
     <EmbeddedResource Remove="CustomWorkers.Tests/**/*" />
     <None Remove="CustomWorkers.Tests/**/*" />
   </ItemGroup>
+
+  <UsingTask
+    TaskName="IncrementCustomWorkersBuildAttempt"
+    TaskFactory="RoslynCodeTaskFactory"
+    AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <CounterFile ParameterType="System.String" Required="true" />
+      <Attempt ParameterType="System.Int32" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var directory = Path.GetDirectoryName(CounterFile);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var previous = 0;
+        if (File.Exists(CounterFile))
+        {
+            var text = File.ReadAllText(CounterFile).Trim();
+            int.TryParse(text, out previous);
+        }
+
+        Attempt = checked(previous + 1);
+        File.WriteAllText(CounterFile, Attempt.ToString());
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target
+    Name="GenerateCustomWorkersBuildInfo"
+    BeforeTargets="CoreCompile"
+    Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+
+    <IncrementCustomWorkersBuildAttempt CounterFile="$(CustomWorkersBuildAttemptFile)">
+      <Output TaskParameter="Attempt" PropertyName="CustomWorkersBuildAttempt" />
+    </IncrementCustomWorkersBuildAttempt>
+
+    <PropertyGroup>
+      <CustomWorkersBuildTimestampUtc>$([System.DateTime]::UtcNow.ToString(&quot;yyyy-MM-ddTHH:mm:ss.fffffffZ&quot;))</CustomWorkersBuildTimestampUtc>
+      <CustomWorkersBuildTimestampLocal>$([System.DateTime]::Now.ToString(&quot;yyyy-MM-ddTHH:mm:ss.fffffffK&quot;))</CustomWorkersBuildTimestampLocal>
+      <CustomWorkersGeneratedBuildInfoFile>$(IntermediateOutputPath)CustomWorkersBuildInfo.g.cs</CustomWorkersGeneratedBuildInfoFile>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+
+    <ItemGroup>
+      <_CustomWorkersBuildInfoLine Include="// &lt;auto-generated /&gt;" />
+      <_CustomWorkersBuildInfoLine Include="namespace CustomWorkers" />
+      <_CustomWorkersBuildInfoLine Include="{" />
+      <_CustomWorkersBuildInfoLine Include="    internal static class BuildInfo" />
+      <_CustomWorkersBuildInfoLine Include="    {" />
+      <_CustomWorkersBuildInfoLine Include="        internal const int BuildAttempt = $(CustomWorkersBuildAttempt)%3B" />
+      <_CustomWorkersBuildInfoLine Include="        internal const string BuildTimestampUtc = &quot;$(CustomWorkersBuildTimestampUtc)&quot;%3B" />
+      <_CustomWorkersBuildInfoLine Include="        internal const string BuildTimestampLocal = &quot;$(CustomWorkersBuildTimestampLocal)&quot;%3B" />
+      <_CustomWorkersBuildInfoLine Include="        internal const string BuildConfiguration = &quot;$(Configuration)&quot;%3B" />
+      <_CustomWorkersBuildInfoLine Include="    }" />
+      <_CustomWorkersBuildInfoLine Include="}" />
+    </ItemGroup>
+
+    <WriteLinesToFile
+      File="$(CustomWorkersGeneratedBuildInfoFile)"
+      Lines="@(_CustomWorkersBuildInfoLine)"
+      Overwrite="true"
+      Encoding="UTF-8" />
+
+    <ItemGroup>
+      <Compile Include="$(CustomWorkersGeneratedBuildInfoFile)" Visible="false" />
+    </ItemGroup>
+
+    <Message
+      Importance="high"
+      Text="Custom Workers build info generated: attempt=$(CustomWorkersBuildAttempt) utc=$(CustomWorkersBuildTimestampUtc)" />
+  </Target>
 </Project>
