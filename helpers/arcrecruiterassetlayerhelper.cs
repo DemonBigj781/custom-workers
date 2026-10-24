@@ -110,12 +110,16 @@ internal static class ArcRecruiterAssetLayerHelper
         {
             Image image = images[index];
             string name = image.gameObject.name;
-            string lowerName = name.ToLowerInvariant();
-            if (!string.Equals(name, "Icon", StringComparison.Ordinal)
-                && !string.Equals(name, "Sprite", StringComparison.Ordinal)
-                && !string.Equals(name, "Icon2", StringComparison.Ordinal)
-                && !lowerName.Contains("icon")
-                && !lowerName.Contains("sprite"))
+            if (ArcRecruiterVisualRules.ShouldHideSecondaryTileIcon(name))
+            {
+                image.enabled = false;
+                image.gameObject.SetActive(false);
+                logger?.LogInfo($"Custom Workers ARC asset layer hid duplicate app icon path={GetTransformPath(image.transform)}.");
+                continue;
+            }
+
+            string parentName = image.transform.parent != null ? image.transform.parent.name : string.Empty;
+            if (!ArcRecruiterVisualRules.ShouldAssignTileIcon(name, parentName))
             {
                 continue;
             }
@@ -200,7 +204,42 @@ internal static class ArcRecruiterAssetLayerHelper
         image.enabled = true;
         logoObject.SetActive(true);
         logoObject.transform.SetAsLastSibling();
+        HideLegacyHeaderBranding(screen, logger);
         logger?.LogInfo($"Custom Workers ARC asset layer assigned header logo at {GetTransformPath(logoObject.transform)}.");
+    }
+
+    private static void HideLegacyHeaderBranding(HireWorkerScreen screen, ManualLogSource? logger)
+    {
+        if (screen.m_ScreenGroup == null)
+        {
+            return;
+        }
+
+        Transform root = screen.m_ScreenGroup.transform;
+        Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+        int hiddenTextCount = 0;
+        int hiddenIconCount = 0;
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform transform = transforms[index];
+            bool isUnderHireWorkerPanel = transform.GetComponentInParent<HireWorkerPanelUI>() != null;
+            bool isDirectChildOfScreenGroup = transform.parent == root;
+
+            if (ArcRecruiterVisualRules.ShouldHideLegacyHeaderText(transform.name, isUnderHireWorkerPanel))
+            {
+                transform.gameObject.SetActive(false);
+                hiddenTextCount++;
+                continue;
+            }
+
+            if (ArcRecruiterVisualRules.ShouldHideLegacyHeaderIcon(transform.name, isDirectChildOfScreenGroup, isUnderHireWorkerPanel))
+            {
+                transform.gameObject.SetActive(false);
+                hiddenIconCount++;
+            }
+        }
+
+        logger?.LogInfo($"Custom Workers ARC asset layer hid legacy header branding: hiddenTexts={hiddenTextCount} hiddenIcons={hiddenIconCount}.");
     }
 
     private static void ApplyWorkerIcons(HireWorkerScreen screen, IReadOnlyDictionary<int, GeneratedWorkerAppearance> generatedAppearances, ManualLogSource? logger)

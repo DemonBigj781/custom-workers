@@ -107,46 +107,12 @@ internal static class LogHelper
         FieldInfo posXField,
         FieldInfo lerpPosXField)
     {
-        try
-        {
-            string pluginDirectory = GetRunArtifactDirectory();
-            Directory.CreateDirectory(pluginDirectory);
-            string outputPath = Path.Combine(pluginDirectory, $"app-layout-{snapshotName}.html");
-            File.WriteAllText(
-                outputPath,
-                BuildHireScreenLayoutHtml(
-                    screen,
-                    workerDataList,
-                    generatedAppearances,
-                    maxPosXField,
-                    scrollEndPosParentField,
-                    canEvaluateMaxScrollPosField,
-                    maxPosFoundField,
-                    maxPosAccurateFoundField,
-                    posXField,
-                    lerpPosXField));
-            logger.LogInfo($"Custom Workers wrote app layout snapshot '{snapshotName}' to {outputPath}.");
-        }
-        catch (System.Exception ex)
-        {
-            logger.LogError($"Custom Workers failed to write app layout snapshot '{snapshotName}': {ex}");
-        }
+        logger.LogInfo($"Custom Workers skipped app layout snapshot '{snapshotName}' because broad UI asset dumps are disabled.");
     }
 
     internal static void WriteUiAssetInventoryHtml(ManualLogSource logger, string snapshotName, Transform root)
     {
-        try
-        {
-            string pluginDirectory = GetRunArtifactDirectory();
-            Directory.CreateDirectory(pluginDirectory);
-            string outputPath = Path.Combine(pluginDirectory, $"ui-assets-{snapshotName}.html");
-            File.WriteAllText(outputPath, BuildUiAssetInventoryHtml(root));
-            logger.LogInfo($"Custom Workers wrote UI asset inventory '{snapshotName}' to {outputPath}.");
-        }
-        catch (System.Exception ex)
-        {
-            logger.LogError($"Custom Workers failed to write UI asset inventory '{snapshotName}': {ex}");
-        }
+        logger.LogInfo($"Custom Workers skipped UI asset inventory '{snapshotName}' because broad UI asset dumps are disabled.");
     }
 
     internal static void LogHireWorkerDiagnostics(ManualLogSource logger, HireWorkerScreen screen, FieldInfo maxPosXField)

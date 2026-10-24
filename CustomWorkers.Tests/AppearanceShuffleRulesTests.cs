@@ -30,6 +30,8 @@ public sealed class AppearanceShuffleRulesTests
     {
         var options = new AppearanceShuffleOptions
         {
+            EnableCustomerAppearancePatch = true,
+            EnableWorkerAppearancePatch = true,
             CustomerShirt = false,
             CustomerPants = false,
             CustomerShoes = false,

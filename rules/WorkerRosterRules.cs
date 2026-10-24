@@ -30,6 +30,12 @@ internal static class WorkerRosterRules
         return Math.Max(1, Math.Min(availableFirstNames, availableLastNames));
     }
 
+    internal static int GetWorkerSaveDataEntriesToAdd(int runtimeWorkerCount, int generatedWorkerCount, int existingSaveDataCount)
+    {
+        int requiredWorkerCount = Math.Max(0, runtimeWorkerCount) + Math.Max(0, generatedWorkerCount);
+        return Math.Max(0, requiredWorkerCount - Math.Max(0, existingSaveDataCount));
+    }
+
     internal static WorkerData CreateGeneratedWorkerData(WorkerData template, int newIndex, int generatedSlotIndex, bool isFemale, ISet<string> usedNames, ISet<string> usedFirstNames, ISet<string> usedLastNames)
     {
         Random random = CreateRandom(newIndex, isFemale);

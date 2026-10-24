@@ -61,11 +61,15 @@
     <Compile Include="../rules/HireWorkerLayoutRules.cs" Link="HireWorkerLayoutRules.cs" />
     <Compile Include="../rules/ShirtColorRules.cs" Link="ShirtColorRules.cs" />
     <Compile Include="../rules/WorkerIconRules.cs" Link="WorkerIconRules.cs" />
-    <Compile Include="../enum/images/workericonsourceenum.cs" Link="workericonsourceenum.cs" />
+    <Compile Include="../helpers/workericonsourcemode.cs" Link="workericonsourcemode.cs" />
     <Compile Include="../enum/images/workericonbase64enum.cs" Link="workericonbase64enum.cs" />
     <Compile Include="../rules/WorkerRosterRules.cs" Link="WorkerRosterRules.cs" />
+    <Compile Include="../rules/WorkerTaskBoardRosterRules.cs" Link="WorkerTaskBoardRosterRules.cs" />
     <Compile Include="../helpers/base64spritehelper.cs" Link="base64spritehelper.cs" />
     <Compile Include="../helpers/appearancesettingshelper.cs" Link="appearancesettingshelper.cs" />
+    <Compile Include="../helpers/killswitchhelper.cs" Link="killswitchhelper.cs" />
+    <Compile Include="../rules/ArcRecruiterTileRules.cs" Link="ArcRecruiterTileRules.cs" />
+    <Compile Include="../rules/ArcRecruiterVisualRules.cs" Link="ArcRecruiterVisualRules.cs" />
     <Compile Include="../enum/discriptionenum.cs" Link="discriptionenum.cs" />
     <Compile Include="../enum/femalegenderenum.cs" Link="femalegenderenum.cs" />
     <Compile Include="../enum/lastnameenum.cs" Link="lastnameenum.cs" />
@@ -74,6 +78,9 @@
     <Compile Include="AppearancePartRulesTests.cs" />
     <Compile Include="AppearanceSkinRulesTests.cs" />
     <Compile Include="AppearanceShuffleRulesTests.cs" />
+    <Compile Include="ArcAssetIsolationRulesTests.cs" />
+    <Compile Include="ArcRecruiterTileRulesTests.cs" />
+    <Compile Include="ArcRecruiterVisualRulesTests.cs" />
     <Compile Include="ControllerRowRulesTests.cs" />
     <Compile Include="GeneratedWorkerAppearanceRulesTests.cs" />
     <Compile Include="GeneratedWorkerLogRulesTests.cs" />
@@ -81,10 +88,15 @@
     <Compile Include="WorkerBioRulesTests.cs" />
     <Compile Include="WorkerIconSourceRulesTests.cs" />
     <Compile Include="HireWorkerNavigationRulesTests.cs" />
+    <Compile Include="KillSwitchHelperTests.cs" />
+    <Compile Include="LogHelperSourceTests.cs" />
     <Compile Include="MrBurnsRulesTests.cs" />
     <Compile Include="ScrollStabilizationRulesTests.cs" />
     <Compile Include="HireWorkerLayoutRulesTests.cs" />
     <Compile Include="ShirtColorRulesTests.cs" />
+    <Compile Include="TestLogHelperShim.cs" />
     <Compile Include="WorkerRosterRulesTests.cs" />
+    <Compile Include="WorkerTaskBoardRosterRulesTests.cs" />
+    <Compile Include="YoureHiredCompatibilityTests.cs" />
   </ItemGroup>
 </Project>

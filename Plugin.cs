@@ -138,6 +138,7 @@ public sealed class Plugin : BaseUnityPlugin
             {
                 Logger.LogInfo("Custom Workers starting Harmony PatchAll for plugin assembly.");
                 HarmonyInstance.PatchAll(typeof(Plugin).Assembly);
+                WorkerTaskBoardCompatibility.Install(HarmonyInstance, Logger);
                 patchAllSucceeded = true;
                 Logger.LogInfo("Custom Workers completed Harmony PatchAll for plugin assembly.");
             }
@@ -608,8 +609,9 @@ public sealed class Plugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(WorkerManager), "Start")]
-    private static class WorkerManagerStartPatch
+    [HarmonyPatch(typeof(WorkerManager), "Init")]
+    [HarmonyAfter("YoureHired")]
+    private static class WorkerManagerInitPatch
     {
         private static bool Prepare()
         {
@@ -618,19 +620,19 @@ public sealed class Plugin : BaseUnityPlugin
 
         private static void Postfix(WorkerManager __instance)
         {
-            if (!KillSwitchHelper.IsWorldReadyForRosterMutation())
+            if (!CanSafelyExtendWorkerRoster(__instance, "WorkerManager.Init"))
             {
-                Instance?.Logger.LogWarning($"Custom Workers WorkerManager.Start hard-blocked roster mutation because world is not ready. workerRuntimeCount={WorkerManager.GetWorkerList()?.Count ?? -1}");
                 return;
             }
 
-            Instance?.Logger.LogInfo($"Custom Workers WorkerManager.Start checkpoint: rosterCountBeforeExtend={__instance?.m_WorkerDataList?.Count ?? -1} workerRuntimeCount={WorkerManager.GetWorkerList()?.Count ?? -1}");
+            Instance?.Logger.LogInfo($"Custom Workers WorkerManager.Init checkpoint: rosterCountBeforeExtend={__instance?.m_WorkerDataList?.Count ?? -1} workerRuntimeCount={WorkerManager.GetWorkerList()?.Count ?? -1} saveDataCount={CPlayerData.m_WorkerSaveDataList?.Count ?? -1} hiredFlagCount={CPlayerData.m_IsWorkerHired?.Count ?? -1}");
             ExtendWorkerRoster(__instance);
-            Instance?.Logger.LogInfo($"Custom Workers WorkerManager.Start checkpoint: rosterCountAfterExtend={__instance?.m_WorkerDataList?.Count ?? -1} generatedCount={GeneratedWorkerAppearances.Count}");
+            Instance?.Logger.LogInfo($"Custom Workers WorkerManager.Init checkpoint: rosterCountAfterExtend={__instance?.m_WorkerDataList?.Count ?? -1} generatedCount={GeneratedWorkerAppearances.Count}");
         }
     }
 
     [HarmonyPatch(typeof(HireWorkerScreen), "Init")]
+    [HarmonyAfter("YoureHired")]
     private static class HireWorkerScreenInitPatch
     {
         private static bool Prepare()
@@ -688,7 +690,7 @@ public sealed class Plugin : BaseUnityPlugin
 
             if (hirePanelsExpandedThisInit)
             {
-                ScrollHelper.RefreshExpandedHireWorkerLayout(__instance, ScrollEndPosParentField, EvaluateScrollerMethod);
+                ScrollHelper.RefreshExpandedHireWorkerLayout(__instance, ScrollEndPosParentField, EvaluateScrollerMethod, MaxPosXField, PosXField, LerpPosXField, MaxPosFoundField, MaxPosAccurateFoundField);
             }
 
             EnsureCloneHirePanelsInitialized(__instance);
@@ -947,7 +949,12 @@ public sealed class Plugin : BaseUnityPlugin
             int requestedWorkerSlots = System.Math.Max(1, AppearanceSettingsHelper.GetCurrentOptions().GeneratedWorkerCount);
             int maxGeneratedWorkerSlots = WorkerRosterRules.GetMaximumGeneratedWorkerCount(manager.m_WorkerDataList);
             int additionalWorkerSlots = WorkerRosterRules.GetGeneratedWorkerCount(manager.m_WorkerDataList);
-            Instance?.Logger.LogInfo($"Custom Workers extending roster from {manager.m_WorkerDataList.Count} by {additionalWorkerSlots} generated workers (requested={requestedWorkerSlots}, max={maxGeneratedWorkerSlots}).");
+            int saveDataCountBeforeExtension = manager.m_WorkerSaveDataList?.Count ?? CPlayerData.m_WorkerSaveDataList?.Count ?? 0;
+            int saveDataEntriesToAdd = WorkerRosterRules.GetWorkerSaveDataEntriesToAdd(
+                runtimeWorkerCount,
+                additionalWorkerSlots,
+                saveDataCountBeforeExtension);
+            Instance?.Logger.LogInfo($"Custom Workers extending roster from {manager.m_WorkerDataList.Count} by {additionalWorkerSlots} generated workers (requested={requestedWorkerSlots}, max={maxGeneratedWorkerSlots}, saveDataBefore={saveDataCountBeforeExtension}, saveDataEntriesToAdd={saveDataEntriesToAdd}).");
             for (int slotOffset = 0; slotOffset < additionalWorkerSlots; slotOffset++)
             {
                 int newIndex = manager.m_WorkerDataList.Count;
@@ -956,6 +963,7 @@ public sealed class Plugin : BaseUnityPlugin
                 GeneratedWorkerAppearances[newIndex] = appearance;
                 EnsureWorkerRestPoint(manager, newIndex);
                 Worker? worker = EnsureRuntimeWorker(manager, newIndex);
+                EnsureWorkerSaveData(manager, newIndex, worker);
                 WorkerData generatedWorkerData = WorkerRosterRules.CreateGeneratedWorkerData(template, newIndex, slotOffset, appearance.IsFemale, usedNames, usedFirstNames, usedLastNames);
                 manager.m_WorkerDataList.Add(generatedWorkerData);
                 generatedWorkerLogEntries.Add(CreateGeneratedWorkerLogEntry(newIndex, slotOffset, generatedWorkerData, appearance));
@@ -969,13 +977,50 @@ public sealed class Plugin : BaseUnityPlugin
             canonicalExpandedWorkerDataList = manager.m_WorkerDataList;
             LogHelper.WriteGeneratedWorkerJson(Instance!.Logger, generatedWorkerLogEntries);
             LogHelper.WriteWorkerRosterJson(Instance!.Logger, "extended", manager.m_WorkerDataList, GeneratedWorkerAppearances);
-            Instance?.Logger.LogInfo($"Custom Workers extended worker roster to {manager.m_WorkerDataList.Count} entries.");
+            Instance?.Logger.LogInfo($"Custom Workers extended worker roster to {manager.m_WorkerDataList.Count} entries with saveDataCount={manager.m_WorkerSaveDataList?.Count ?? CPlayerData.m_WorkerSaveDataList?.Count ?? -1}.");
         }
         catch (System.Exception ex)
         {
             workerRosterExtended = false;
             Instance?.Logger.LogError($"Custom Workers failed to extend worker roster: {ex}");
         }
+    }
+
+    private static bool CanSafelyExtendWorkerRoster(WorkerManager? manager, string phase)
+    {
+        if (KillSwitchHelper.TripIfDisabled(KillSwitchHelper.IsRosterExtensionEnabled(), $"RosterExtension.{phase}", Instance?.Logger))
+        {
+            return false;
+        }
+
+        if (manager == null)
+        {
+            Instance?.Logger.LogWarning($"Custom Workers {phase} hard-blocked roster mutation because WorkerManager is null.");
+            return false;
+        }
+
+        List<Worker>? runtimeWorkers = WorkerManager.GetWorkerList();
+        int runtimeWorkerCount = runtimeWorkers?.Count ?? -1;
+        int workerDataCount = manager.m_WorkerDataList?.Count ?? -1;
+        int restPointCount = manager.m_WorkerRestPointList?.Count ?? -1;
+        int hiredFlagCount = CPlayerData.m_IsWorkerHired?.Count ?? -1;
+        int workerSaveDataCount = CPlayerData.m_WorkerSaveDataList?.Count ?? -1;
+
+        if (!KillSwitchHelper.IsWorldReadyForRosterMutation())
+        {
+            Instance?.Logger.LogWarning($"Custom Workers {phase} hard-blocked roster mutation because world is not ready. workerDataCount={workerDataCount} runtimeWorkerCount={runtimeWorkerCount} restPointCount={restPointCount} hiredFlagCount={hiredFlagCount} workerSaveDataCount={workerSaveDataCount}");
+            return false;
+        }
+
+        bool saveBackedStateAligned = KillSwitchHelper.IsSaveBackedWorkerStateAligned(CPlayerData.m_IsWorkerHired, runtimeWorkerCount, restPointCount, workerSaveDataCount);
+
+        if (!saveBackedStateAligned)
+        {
+            Instance?.Logger.LogWarning($"Custom Workers {phase} hard-blocked roster mutation because save-backed worker state is not aligned yet. workerDataCount={workerDataCount} runtimeWorkerCount={runtimeWorkerCount} restPointCount={restPointCount} hiredFlagCount={hiredFlagCount} workerSaveDataCount={workerSaveDataCount}");
+            return false;
+        }
+
+        return true;
     }
 
     private static void EnsureWorkerRestPoint(WorkerManager manager, int newIndex)
@@ -1032,6 +1077,29 @@ public sealed class Plugin : BaseUnityPlugin
         worker.InitializeCharacter();
         worker.SetOutOfScreen();
         return worker;
+    }
+
+    private static void EnsureWorkerSaveData(WorkerManager manager, int workerIndex, Worker? generatedWorker)
+    {
+        List<WorkerSaveData>? saveData = manager.m_WorkerSaveDataList ?? CPlayerData.m_WorkerSaveDataList;
+        if (saveData == null)
+        {
+            saveData = new List<WorkerSaveData>();
+        }
+
+        List<Worker> runtimeWorkers = WorkerManager.GetWorkerList();
+        while (saveData.Count <= workerIndex)
+        {
+            int missingIndex = saveData.Count;
+            Worker? sourceWorker = missingIndex == workerIndex
+                ? generatedWorker
+                : missingIndex < runtimeWorkers.Count ? runtimeWorkers[missingIndex] : null;
+            saveData.Add(sourceWorker?.GetWorkerSaveData() ?? new WorkerSaveData());
+        }
+
+        manager.m_WorkerSaveDataList = saveData;
+        CPlayerData.m_WorkerSaveDataList = saveData;
+        Instance?.Logger.LogInfo($"Custom Workers normalized worker save data through index {workerIndex}; saveDataCount={saveData.Count}.");
     }
 
     private static GeneratedWorkerLogEntry CreateGeneratedWorkerLogEntry(int workerIndex, int generatedSlotIndex, WorkerData workerData, GeneratedWorkerAppearance appearance)

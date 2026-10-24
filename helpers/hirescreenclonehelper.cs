@@ -62,7 +62,14 @@ internal static class HireScreenCloneHelper
 
         clone.AddComponent<CustomWorkersHireScreenMarker>();
         ApplyCloneTheme(clonedHireWorkerScreen);
-        ArcRecruiterAssetLayerHelper.ApplyOwnedAssets(clonedHireWorkerScreen, GetGeneratedAppearanceMap(), GetLogger(), IsLiveHireTemplateReady(phoneManager.m_HireWorkerScreen));
+        if (KillSwitchHelper.IsArcAssetLoaderEnabled())
+        {
+            ArcRecruiterAssetLayerHelper.ApplyOwnedAssets(clonedHireWorkerScreen, GetGeneratedAppearanceMap(), GetLogger(), IsLiveHireTemplateReady(phoneManager.m_HireWorkerScreen));
+        }
+        else
+        {
+            LogInfo("Skipped ARC asset application during clone creation because ArcAssetLoader is disabled.");
+        }
         LogInfo("Created managed ARC Recruiter hire screen clone.");
         createdThisCall = true;
         if (clonedHireWorkerScreen.m_ScreenGroup != null)
@@ -178,7 +185,7 @@ internal static class HireScreenCloneHelper
 
         if (screen.m_HireWorkerPanelUIList != null && screen.m_HireWorkerPanelUIList.Count > 0)
         {
-            ScrollHelper.RefreshExpandedHireWorkerLayout(screen, ScrollEndPosParentField, EvaluateScrollerMethod);
+            ScrollHelper.RefreshExpandedHireWorkerLayout(screen, ScrollEndPosParentField, EvaluateScrollerMethod, MaxPosXField, PosXField, LerpPosXField, MaxPosFoundField, MaxPosAccurateFoundField);
         }
 
         EnsureVisibleCloneState(screen);
@@ -328,10 +335,17 @@ internal static class HireScreenCloneHelper
 
         if (screen.m_HireWorkerPanelUIList.Count > 0)
         {
-            ScrollHelper.RefreshExpandedHireWorkerLayout(screen, ScrollEndPosParentField, EvaluateScrollerMethod);
+            ScrollHelper.RefreshExpandedHireWorkerLayout(screen, ScrollEndPosParentField, EvaluateScrollerMethod, MaxPosXField, PosXField, LerpPosXField, MaxPosFoundField, MaxPosAccurateFoundField);
         }
 
-        ArcRecruiterAssetLayerHelper.ApplyOwnedAssets(screen, GetGeneratedAppearanceMap(), manualLogSource ?? GetLogger(), liveTemplateReady);
+        if (KillSwitchHelper.IsArcAssetLoaderEnabled())
+        {
+            ArcRecruiterAssetLayerHelper.ApplyOwnedAssets(screen, GetGeneratedAppearanceMap(), manualLogSource ?? GetLogger(), liveTemplateReady);
+        }
+        else
+        {
+            LogInfo("Skipped ARC asset application during clone preparation because ArcAssetLoader is disabled.");
+        }
         ControlHelper.RebindControllerButtons(screen, manualLogSource ?? GetLogger());
         RebindCloseButtons(screen);
 

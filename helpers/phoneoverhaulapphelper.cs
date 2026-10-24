@@ -142,7 +142,15 @@ internal static class PhoneOverhaulAppHelper
             log?.LogInfo($"Custom Workers found ARC Recruiter tile '{tile.name}' and is applying custom visuals. tilePath={GetTransformPath(tile)} tileAlreadyExisted={tileAlreadyExisted} activeInHierarchy={tile.gameObject.activeInHierarchy}");
 
             int clickListenerCountBefore = CountPersistentButtonListeners(tile);
-            bool assignedIcon = ArcRecruiterAssetLayerHelper.ApplyTileIcon(tile, log);
+            bool assignedIcon = false;
+            if (KillSwitchHelper.IsArcAssetLoaderEnabled())
+            {
+                assignedIcon = ArcRecruiterAssetLayerHelper.ApplyTileIcon(tile, log);
+            }
+            else
+            {
+                log?.LogInfo("Custom Workers skipped ARC Recruiter tile icon assignment because ArcAssetLoader is disabled.");
+            }
 
             TMP_Text[] labels = tile.GetComponentsInChildren<TMP_Text>(true);
             for (int index = 0; index < labels.Length; index++)
@@ -219,13 +227,12 @@ internal static class PhoneOverhaulAppHelper
 
     private static List<Transform> FindArcRecruiterTiles(Transform root)
     {
-        string expectedSuffix = AppId;
         var matches = new List<Transform>();
         Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
         for (int index = 0; index < transforms.Length; index++)
         {
             Transform transform = transforms[index];
-            if (transform.name != null && transform.name.IndexOf(expectedSuffix, StringComparison.Ordinal) >= 0)
+            if (ArcRecruiterTileRules.IsArcRecruiterTileName(transform.name))
             {
                 matches.Add(transform);
             }

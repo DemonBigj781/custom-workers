@@ -26,9 +26,13 @@ public sealed class WorkerRosterRulesTests
 
         var usedNamesA = WorkerRosterRules.CollectUsedNames(new[] { template });
         var usedNamesB = WorkerRosterRules.CollectUsedNames(new[] { template });
+        var usedFirstNamesA = WorkerRosterRules.CollectUsedFirstNames(new[] { template });
+        var usedFirstNamesB = WorkerRosterRules.CollectUsedFirstNames(new[] { template });
+        var usedLastNamesA = WorkerRosterRules.CollectUsedLastNames(new[] { template });
+        var usedLastNamesB = WorkerRosterRules.CollectUsedLastNames(new[] { template });
 
-        WorkerData generatedA = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNamesA);
-        WorkerData generatedB = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNamesB);
+        WorkerData generatedA = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNamesA, usedFirstNamesA, usedLastNamesA);
+        WorkerData generatedB = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNamesB, usedFirstNamesB, usedLastNamesB);
 
         Assert.Equal(1337, WorkerRosterRules.Seed);
         Assert.Equal(generatedA.name, generatedB.name);
@@ -60,14 +64,17 @@ public sealed class WorkerRosterRulesTests
             prologueShow = false
         };
 
-        var usedNames = WorkerRosterRules.CollectUsedNames(new[]
+        var existingWorkers = new[]
         {
             new WorkerData { name = "Bertha" },
             new WorkerData { name = "Dolly" }
-        });
+        };
+        var usedNames = WorkerRosterRules.CollectUsedNames(existingWorkers);
+        var usedFirstNames = WorkerRosterRules.CollectUsedFirstNames(existingWorkers);
+        var usedLastNames = WorkerRosterRules.CollectUsedLastNames(existingWorkers);
 
-        WorkerData generatedA = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNames);
-        WorkerData generatedB = WorkerRosterRules.CreateGeneratedWorkerData(template, 9, 1, isFemale: true, usedNames);
+        WorkerData generatedA = WorkerRosterRules.CreateGeneratedWorkerData(template, 8, 0, isFemale: true, usedNames, usedFirstNames, usedLastNames);
+        WorkerData generatedB = WorkerRosterRules.CreateGeneratedWorkerData(template, 9, 1, isFemale: true, usedNames, usedFirstNames, usedLastNames);
 
         Assert.NotEqual(generatedA.name, generatedB.name);
         Assert.DoesNotContain(generatedA.name, new[] { "Bertha", "Dolly", "Bertha Wang", "Dolly Wang" });
@@ -77,6 +84,21 @@ public sealed class WorkerRosterRulesTests
     [Fact]
     public void GeneratedWorkerCount_CoversCombinedDistinctFirstNamePool()
     {
-        Assert.Equal(7, WorkerRosterRules.GetGeneratedWorkerCount());
+        Assert.Equal(7, WorkerRosterRules.GetGeneratedWorkerCount(new[] { new WorkerData { name = "Base Worker" } }));
+    }
+
+    [Theory]
+    [InlineData(9, 17, 9, 17)]
+    [InlineData(26, 0, 9, 17)]
+    [InlineData(9, 0, 9, 0)]
+    public void WorkerSaveDataCapacity_CoversEveryRuntimeWorker(
+        int runtimeWorkerCount,
+        int generatedWorkerCount,
+        int existingSaveDataCount,
+        int expectedEntriesToAdd)
+    {
+        Assert.Equal(
+            expectedEntriesToAdd,
+            WorkerRosterRules.GetWorkerSaveDataEntriesToAdd(runtimeWorkerCount, generatedWorkerCount, existingSaveDataCount));
     }
 }
