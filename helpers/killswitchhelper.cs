@@ -92,7 +92,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableArcUi : mode == RuntimeMode.UiOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.UiOnly)
+            && options.EnableArcUi;
     }
 
     internal static bool IsArcAssetLoaderEnabled()
@@ -100,7 +101,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableArcAssetLoader : mode == RuntimeMode.UiOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.UiOnly)
+            && options.EnableArcAssetLoader;
     }
 
     internal static bool IsPhoneOverhaulHooksEnabled()
@@ -108,7 +110,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnablePhoneOverhaulHooks : mode == RuntimeMode.UiOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.UiOnly)
+            && options.EnablePhoneOverhaulHooks;
     }
 
     internal static bool IsRosterExtensionEnabled()
@@ -116,7 +119,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableRosterExtension : mode == RuntimeMode.RosterOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.RosterOnly)
+            && options.EnableRosterExtension;
     }
 
     internal static bool IsWorkerRuntimePatchEnabled()
@@ -124,7 +128,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableWorkerRuntimePatch : mode == RuntimeMode.AppearanceOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.AppearanceOnly)
+            && options.EnableWorkerRuntimePatch;
     }
 
     internal static bool IsNpcMutatorEnabled()
@@ -132,7 +137,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableNpcMutator : mode == RuntimeMode.AppearanceOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.AppearanceOnly)
+            && options.EnableNpcMutator;
     }
 
     internal static bool IsCustomerAppearancePatchEnabled()
@@ -140,7 +146,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableCustomerAppearancePatch : mode == RuntimeMode.AppearanceOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.AppearanceOnly)
+            && options.EnableCustomerAppearancePatch;
     }
 
     internal static bool IsWorkerAppearancePatchEnabled()
@@ -148,7 +155,8 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableWorkerAppearancePatch : mode == RuntimeMode.AppearanceOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.AppearanceOnly)
+            && options.EnableWorkerAppearancePatch;
     }
 
     internal static bool IsWorkerModelValidationEnabled()
@@ -156,7 +164,37 @@ internal static class KillSwitchHelper
         AppearanceShuffleOptions options = AppearanceSettingsHelper.GetCurrentOptions();
         RuntimeMode mode = GetRuntimeMode();
         return options.EnableMod
-            && (mode == RuntimeMode.Full ? options.EnableGeneratedWorkerModelValidation : mode == RuntimeMode.AppearanceOnly);
+            && IsRuntimeFamilyAllowed(mode, RuntimeMode.AppearanceOnly)
+            && options.EnableGeneratedWorkerModelValidation;
+    }
+
+    internal static bool IsSaveBackedWorkerStateAligned(IReadOnlyList<bool>? hiredFlags, int runtimeWorkerCount, int restPointCount, int workerSaveDataCount)
+    {
+        if (runtimeWorkerCount <= 0 || restPointCount < runtimeWorkerCount || hiredFlags == null || hiredFlags.Count < runtimeWorkerCount)
+        {
+            return false;
+        }
+
+        if (workerSaveDataCount >= runtimeWorkerCount)
+        {
+            return true;
+        }
+
+        int safeStartIndex = workerSaveDataCount < 0 ? 0 : workerSaveDataCount;
+        for (int index = safeStartIndex; index < runtimeWorkerCount; index++)
+        {
+            if (hiredFlags[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsRuntimeFamilyAllowed(RuntimeMode mode, RuntimeMode familyMode)
+    {
+        return mode == RuntimeMode.Full || mode == familyMode;
     }
 
     internal static bool TripIfDisabled(bool enabled, string subsystemName, ManualLogSource? logger)
